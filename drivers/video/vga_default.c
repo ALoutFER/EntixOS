@@ -18,11 +18,21 @@ static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes)
 
 void	kprint(uint8_t *str)
 {
-	while (*str)
-	{
-		putchar(*str, WHITE_ON_BLACK);
-		str++;
-	}
+    uint8_t color = WHITE_ON_BLACK;
+    while (*str) {
+        if (*str == '<' && *(str+1) == '(' &&
+            ((*(str+2) >= '0' && *(str+2) <= '9') || (*(str+2) >= 'A' && *(str+2) <= 'F')) &&
+            ((*(str+3) >= '0' && *(str+3) <= '9') || (*(str+3) >= 'A' && *(str+3) <= 'F')) &&
+            *(str+4) == ')' && *(str+5) == '>') {
+            uint8_t hi = (*(str+2) <= '9') ? *(str+2) - '0' : (*(str+2) - 'A' + 10);
+            uint8_t lo = (*(str+3) <= '9') ? *(str+3) - '0' : (*(str+3) - 'A' + 10);
+            color = (hi << 4) | lo;
+            str += 6;
+            continue;
+        }
+        putchar(*str, color);
+        str++;
+    }
 }
 
 void	putchar(uint8_t character, uint8_t attribute_byte)
@@ -52,18 +62,15 @@ void	putchar(uint8_t character, uint8_t attribute_byte)
 
 void	scroll_line()
 {
-    // Сдвигаем все строки на одну вверх
     for (uint8_t i = 1; i < MAX_ROWS; i++) {
         vga_memcpy((uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * i * 2)),
                    (uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * (i - 1) * 2)),
                    (MAX_COLS * 2));
     }
-    // Очищаем последнюю строку
     uint16_t last_line = (MAX_ROWS - 1) * MAX_COLS * 2;
     for (uint8_t i = 0; i < MAX_COLS; i++) {
         write(' ', WHITE_ON_BLACK, last_line + i * 2);
     }
-    // Ставим курсор в начало последней строки
     set_cursor(last_line);
 }
 
@@ -247,85 +254,182 @@ void kprint_hex_w(uint32_t value) {
 void kprintf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    char buf[32];
-    char ch;
-    while (*fmt) {
-        if (*fmt != '%') {
-            putchar(*fmt++, WHITE_ON_BLACK);
+    char buf[256];
+    int len = 0;
+    const char *f = fmt;
+    while (*f && len < 255) {
+        if (*f != '%') {
+            buf[len++] = *f++;
             continue;
         }
-        fmt++;
+        f++;
         int width = 0, zero_pad = 0;
-        if (*fmt == '0') { zero_pad = 1; fmt++; }
-        while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + (*fmt++ - '0'); }
-        switch (*fmt) {
+        if (*f == '0') { zero_pad = 1; f++; }
+        while (*f >= '0' && *f <= '9') { width = width * 10 + (*f++ - '0'); }
+        switch (*f) {
             case 'd': {
                 int val = va_arg(args, int);
                 int is_neg = val < 0;
                 unsigned int uval = is_neg ? -val : val;
                 int i = 0;
-                do { buf[i++] = '0' + (uval % 10); uval /= 10; } while (uval);
-                if (is_neg) buf[i++] = '-';
-                while (i < width) buf[i++] = zero_pad ? '0' : ' ';
-                while (i--) putchar(buf[i], WHITE_ON_BLACK);
+                char numbuf[32];
+                do { numbuf[i++] = '0' + (uval % 10); uval /= 10; } while (uval);
+                if (is_neg) numbuf[i++] = '-';
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
                 break;
             }
             case 'u': {
                 unsigned int val = va_arg(args, unsigned int);
                 int i = 0;
-                do { buf[i++] = '0' + (val % 10); val /= 10; } while (val);
-                while (i < width) buf[i++] = zero_pad ? '0' : ' ';
-                while (i--) putchar(buf[i], WHITE_ON_BLACK);
+                char numbuf[32];
+                do { numbuf[i++] = '0' + (val % 10); val /= 10; } while (val);
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
                 break;
             }
             case 'x': case 'X': {
                 unsigned int val = va_arg(args, unsigned int);
                 int i = 0;
+                char numbuf[32];
                 do {
                     int digit = val & 0xF;
-                    buf[i++] = (digit < 10) ? ('0' + digit) : ((*fmt == 'x' ? 'a' : 'A') + digit - 10);
+                    numbuf[i++] = (digit < 10) ? ('0' + digit) : ((*f == 'x' ? 'a' : 'A') + digit - 10);
                     val >>= 4;
                 } while (val);
-                while (i < width) buf[i++] = zero_pad ? '0' : ' ';
-                while (i--) putchar(buf[i], WHITE_ON_BLACK);
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
                 break;
             }
             case 'p': {
                 unsigned long val = (unsigned long)va_arg(args, void*);
-                putchar('0', WHITE_ON_BLACK); putchar('x', WHITE_ON_BLACK);
+                buf[len++] = '0'; buf[len++] = 'x';
                 int i = 0;
+                char numbuf[32];
                 do {
                     int digit = val & 0xF;
-                    buf[i++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+                    numbuf[i++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
                     val >>= 4;
                 } while (val);
-                while (i--) putchar(buf[i], WHITE_ON_BLACK);
+                while (i--) buf[len++] = numbuf[i];
                 break;
             }
             case 'c': {
-                ch = (char)va_arg(args, int);
-                putchar(ch, WHITE_ON_BLACK);
+                char ch = (char)va_arg(args, int);
+                buf[len++] = ch;
                 break;
             }
             case 's': {
                 char *s = va_arg(args, char*);
-                int len = 0;
-                while (s[len]) len++;
-                int pad = width - len;
-                while (pad-- > 0) putchar(zero_pad ? '0' : ' ', WHITE_ON_BLACK);
-                while (*s) putchar(*s++, WHITE_ON_BLACK);
+                int slen = 0;
+                while (s[slen]) slen++;
+                int pad = width - slen;
+                while (pad-- > 0) buf[len++] = zero_pad ? '0' : ' ';
+                while (*s) buf[len++] = *s++;
                 break;
             }
             case '%': {
-                putchar('%', WHITE_ON_BLACK);
+                buf[len++] = '%';
                 break;
             }
             default:
-                putchar('%', WHITE_ON_BLACK);
-                putchar(*fmt, WHITE_ON_BLACK);
+                buf[len++] = '%';
+                buf[len++] = *f;
                 break;
         }
-        fmt++;
+        f++;
     }
+    buf[len] = 0;
     va_end(args);
+    kprint((uint8_t*)buf);
+}
+
+void kvprintf(const char *fmt, va_list args) {
+    char buf[256];
+    int len = 0;
+    const char *f = fmt;
+    while (*f && len < 255) {
+        if (*f != '%') {
+            buf[len++] = *f++;
+            continue;
+        }
+        f++;
+        int width = 0, zero_pad = 0;
+        if (*f == '0') { zero_pad = 1; f++; }
+        while (*f >= '0' && *f <= '9') { width = width * 10 + (*f++ - '0'); }
+        switch (*f) {
+            case 'd': {
+                int val = va_arg(args, int);
+                int is_neg = val < 0;
+                unsigned int uval = is_neg ? -val : val;
+                int i = 0;
+                char numbuf[32];
+                do { numbuf[i++] = '0' + (uval % 10); uval /= 10; } while (uval);
+                if (is_neg) numbuf[i++] = '-';
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
+                break;
+            }
+            case 'u': {
+                unsigned int val = va_arg(args, unsigned int);
+                int i = 0;
+                char numbuf[32];
+                do { numbuf[i++] = '0' + (val % 10); val /= 10; } while (val);
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
+                break;
+            }
+            case 'x': case 'X': {
+                unsigned int val = va_arg(args, unsigned int);
+                int i = 0;
+                char numbuf[32];
+                do {
+                    int digit = val & 0xF;
+                    numbuf[i++] = (digit < 10) ? ('0' + digit) : ((*f == 'x' ? 'a' : 'A') + digit - 10);
+                    val >>= 4;
+                } while (val);
+                while (i < width) numbuf[i++] = zero_pad ? '0' : ' ';
+                while (i--) buf[len++] = numbuf[i];
+                break;
+            }
+            case 'p': {
+                unsigned long val = (unsigned long)va_arg(args, void*);
+                buf[len++] = '0'; buf[len++] = 'x';
+                int i = 0;
+                char numbuf[32];
+                do {
+                    int digit = val & 0xF;
+                    numbuf[i++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+                    val >>= 4;
+                } while (val);
+                while (i--) buf[len++] = numbuf[i];
+                break;
+            }
+            case 'c': {
+                char ch = (char)va_arg(args, int);
+                buf[len++] = ch;
+                break;
+            }
+            case 's': {
+                char *s = va_arg(args, char*);
+                int slen = 0;
+                while (s[slen]) slen++;
+                int pad = width - slen;
+                while (pad-- > 0) buf[len++] = zero_pad ? '0' : ' ';
+                while (*s) buf[len++] = *s++;
+                break;
+            }
+            case '%': {
+                buf[len++] = '%';
+                break;
+            }
+            default:
+                buf[len++] = '%';
+                buf[len++] = *f;
+                break;
+        }
+        f++;
+    }
+    buf[len] = 0;
+    kprint((uint8_t*)buf);
 }

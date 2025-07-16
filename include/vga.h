@@ -38,5 +38,6 @@ void kprint_hex(uint32_t value);
 void kprint_hex_w(uint32_t value);
 
 void kprintf(const char *fmt, ...);
+void kvprintf(const char *fmt, va_list args);
 
 #endif

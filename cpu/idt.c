@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <cpu.h>
 #include <vga.h>
+#include <debug.h>
 #include <string.h>
 
 #define IDT_SIZE 256
@@ -67,7 +68,7 @@ void idt_init(void)
     idtr.size = sizeof(idt) - 1;
     idtr.offset = (uint64_t)&idt;
     __asm__ __volatile__("lidt %0" : : "m"(idtr));
-    kprintf("idt initialized\n");
+    kdbg(KINFO, "idt_init: lidt 0x%08X\n", idtr.offset);
 }
 
 void idt_register_handler(uint8_t vector, void (*handler)(cpu_registers_t*))
