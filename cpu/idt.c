@@ -31,14 +31,14 @@ void isr_dispatch(cpu_registers_t* regs)
 {
     uint8_t vec = (uint8_t)regs->int_no;
     switch (vec) {
-        case 1:
-            kprintf("Timer interrupt\n");
-            break;
         case 46:
             kprintf("Page fault!\nEIP: %08X\n", regs->rip);
             break;
+        case 32:
+            kprintf("Timer interrupt\n");
+            break;
         case 33:
-            kprintf("Keyboard interrupt\n");
+            //kprintf("Keyboard interrupt\n");
             break;
         default:
             kprintf("\nkernel panic: %s\n", exception_messages[vec]);
@@ -51,7 +51,6 @@ void isr_dispatch(cpu_registers_t* regs)
 
     if (vec >= 32 && vec <= 47)
         pic_send_eoi(vec - 32);
-    kprintf("\ninterrupt: %d\n", vec);
 }
 
 void idt_init(void)

@@ -52,25 +52,19 @@ void	putchar(uint8_t character, uint8_t attribute_byte)
 
 void	scroll_line()
 {
-	uint8_t i = 1;
-	uint16_t last_line;
-	while (i < MAX_ROWS)
-	{
-		vga_memcpy((uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * i * 2)),
-			   (uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * (i - 1) * 2)),
-			   (MAX_COLS*2)
-		);
-		i++;
-	}
-
-	last_line = (MAX_COLS*MAX_ROWS*2) - MAX_COLS*2;
-	i = 0;
-	while (i < MAX_COLS)
-	{
-		write('\0', WHITE_ON_BLACK, (last_line + i * 2));
-		i++;
-	}
-	set_cursor(last_line - 160);
+    // Сдвигаем все строки на одну вверх
+    for (uint8_t i = 1; i < MAX_ROWS; i++) {
+        vga_memcpy((uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * i * 2)),
+                   (uint8_t *)(VIDEO_ADDRESS + (MAX_COLS * (i - 1) * 2)),
+                   (MAX_COLS * 2));
+    }
+    // Очищаем последнюю строку
+    uint16_t last_line = (MAX_ROWS - 1) * MAX_COLS * 2;
+    for (uint8_t i = 0; i < MAX_COLS; i++) {
+        write(' ', WHITE_ON_BLACK, last_line + i * 2);
+    }
+    // Ставим курсор в начало последней строки
+    set_cursor(last_line);
 }
 
 void	clear_screen()
