@@ -1,4 +1,4 @@
-section .multiboot2 align=8
+section .multiboot align=8
     dd 0xe85250d6                ; magic
     dd 0                         ; architecture (0 = i386+)
     dd header_end - $$           ; header length
@@ -27,6 +27,9 @@ pd_table:  resb 4096
 global pt_table
 pt_table:  resb 4096
 
+magic64: resq 1
+addr64:  resq 1
+
 section .text
 bits 32
 global _start
@@ -44,6 +47,8 @@ _start:
     mov esi, ebx
     call setup_page_tables
     call enable_paging
+    mov [magic64], eax
+    mov [addr64], ebx
     lea eax, [tmp_gdt_ptr]
     lgdt [eax]
     jmp 0x08:long_mode_start
@@ -144,6 +149,9 @@ long_mode_start:
     mov es, ax
     mov ss, ax
     mov rsp, stack_top
+    ; --- Передаём magic и addr в rdi/rsi ---
+    mov rdi, [magic64]
+    mov rsi, [addr64]
     call kernel_main
     cli
 .hang:

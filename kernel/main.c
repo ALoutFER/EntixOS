@@ -10,7 +10,7 @@
 #include <debug.h>
 #include <ps2.h>
 
-void kernel_main(void)
+void kernel_main(uint32_t magic, uint32_t addr)
 {
     gdt_init();
     tss_init();
@@ -34,6 +34,9 @@ void kernel_main(void)
         char *buf = kgets();
         if (strcmp(buf, "exit") == 0) {
             break;
+        }
+        else if (strcmp(buf, "help") == 0) {
+            kprint("help command\n");
         }
         else {
             kprintf("You typed: %s\n", buf);

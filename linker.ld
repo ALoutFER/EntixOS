@@ -5,9 +5,9 @@ SECTIONS
 {
     . = 0x100000;
 
-    .multiboot2 :
+    .multiboot :
     {
-        *(.multiboot2)
+        *(.multiboot)
     }
 
     .text :
