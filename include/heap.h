@@ -2,6 +2,10 @@
 #define HEAP_H
 #include <stddef.h>
 #include <stdint.h>
+
+#define HEAP_START 0x200000
+#define HEAP_SIZE 1024 * 1024 * 16
+
 void heap_init(uint64_t heap_start, uint64_t heap_size);
 void *kmalloc(size_t size);
 void *kcalloc(size_t nmemb, size_t size);

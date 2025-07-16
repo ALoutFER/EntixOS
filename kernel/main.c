@@ -7,6 +7,7 @@
 #include <pic.h>
 #include <string.h>
 #include <cpu.h>
+#include <heap.h>
 #include <debug.h>
 #include <ps2.h>
 
@@ -14,7 +15,7 @@ void kernel_main(uint32_t magic, uint32_t addr)
 {
     gdt_init();
     tss_init();
-    kprintf("\n<(0F)>%s %s kernel\n\n", KERNEL_FNAME, KERNEL_VERSION);
+    kprintf("\n<(0F)>%s %s Operating System\n\n", KERNEL_FNAME, KERNEL_VERSION);
     idt_init();
     kdbg(KINFO, "kernel_main: base success\n");
     kdbg(KINFO, "pic_remap: remapping 0x20, 0x28\n");
@@ -28,6 +29,19 @@ void kernel_main(uint32_t magic, uint32_t addr)
     }
     __asm__("sti");
     paging_init();
+    heap_init(HEAP_START, HEAP_SIZE);
+    kdbg(KDBG, "heap_init: HEAP_START=%x, HEAP_SIZE=%x\n", HEAP_START, HEAP_SIZE);
+
+    void *ptr = kmalloc(1024);
+    kdbg(KDBG, "kmalloc: ptr=%x\n", ptr);
+
+    void *ptr2 = kmalloc(1024);
+    kdbg(KDBG, "kmalloc: ptr2=%x\n", ptr2);
+    kfree(ptr);
+    kfree(ptr2);
+    kdbg(KDBG, "kfree: ptr=%x\n", ptr);
+    kdbg(KDBG, "kfree: ptr2=%x\n", ptr2);
+
     kprintf("%s %s shell\n\n", KERNEL_NAME, KERNEL_VERSION);
     while (1) {
         kprintf("entix> ");

@@ -8,6 +8,7 @@
 #define KWARN 2
 #define KERR 3
 #define KPANIC 4
+#define KDBG 5
 
 void kdbg(int lvl, char *fmt, ...);
 

@@ -50,15 +50,18 @@ void kfree(void *ptr) {
     if (!ptr) return;
     heap_block_t *block = (heap_block_t*)((uint8_t*)ptr - BLOCK_SIZE);
     block->free = 1;
+
     if (block->next && block->next->free) {
         block->size += BLOCK_SIZE + block->next->size;
         block->next = block->next->next;
         if (block->next) block->next->prev = block;
     }
+
     if (block->prev && block->prev->free) {
         block->prev->size += BLOCK_SIZE + block->size;
         block->prev->next = block->next;
         if (block->next) block->next->prev = block->prev;
+        return;
     }
 }
 void *krealloc(void *ptr, size_t size) {
